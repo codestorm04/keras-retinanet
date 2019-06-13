@@ -119,7 +119,7 @@ def main(args=None):
     args = parse_args(args)
 
     # make sure keras is the minimum required version
-    check_keras_version()
+    # check_keras_version()
 
     # optionally choose specific GPU
     if args.gpu:
@@ -186,3 +186,7 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
+
+# conda activate tensorflow-retina
+# python evaluate.py coco /mnt/lyz/coco/ ../../snapshots/resnet50_coco_best_v2.1.0.h5 --gpu=0 --image-max-side=1000

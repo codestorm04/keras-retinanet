@@ -128,7 +128,8 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0,
             'regression'    : losses.smooth_l1(),
             'classification': losses.focal()
         },
-        optimizer=keras.optimizers.adam(lr=lr, clipnorm=0.001)
+#        optimizer=keras.optimizers.adam(lr=lr, clipnorm=0.001)
+        optimizer=keras.optimizers.SGD(lr=0.001, momentum=0.9, decay=0.0001)
     )
 
     return model, training_model, prediction_model
@@ -186,9 +187,9 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
                 '{backbone}_{dataset_type}_{{epoch:02d}}.h5'.format(backbone=args.backbone, dataset_type=args.dataset_type)
             ),
             verbose=1,
-            # save_best_only=True,
-            # monitor="mAP",
-            # mode='max'
+            save_best_only=True,
+            monitor="mAP",
+            mode='max'
         )
         checkpoint = RedirectModel(checkpoint, model)
         callbacks.append(checkpoint)
@@ -201,7 +202,7 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
         mode       = 'auto',
         min_delta  = 0.0001,
         cooldown   = 0,
-        min_lr     = 0
+        min_lr     = 0.00001
     ))
 
     return callbacks
@@ -346,8 +347,8 @@ def check_args(parsed_args):
             "Multi GPU training ({}) and resuming from snapshots ({}) is not supported.".format(parsed_args.multi_gpu,
                                                                                                 parsed_args.snapshot))
 
-    if parsed_args.multi_gpu > 1 and not parsed_args.multi_gpu_force:
-        raise ValueError("Multi-GPU support is experimental, use at own risk! Run with --multi-gpu-force if you wish to continue.")
+#    if parsed_args.multi_gpu > 1 and not parsed_args.multi_gpu_force:
+#        raise ValueError("Multi-GPU support is experimental, use at own risk! Run with --multi-gpu-force if you wish to continue.")
 
     if 'resnet' not in parsed_args.backbone:
         warnings.warn('Using experimental backbone {}. Only resnet50 has been properly tested.'.format(parsed_args.backbone))
@@ -411,6 +412,7 @@ def parse_args(args):
     parser.add_argument('--config',           help='Path to a configuration parameters .ini file.')
     parser.add_argument('--weighted-average', help='Compute the mAP using the weighted average of precisions among classes.', action='store_true')
     parser.add_argument('--compute-val-loss', help='Compute validation loss during training', dest='compute_val_loss', action='store_true')
+    parser.add_argument('--initial_epoch',    help='Epoch at which to start training (useful for resuming a previous training run).', type=int, default=0)
 
     # Fit generator arguments
     parser.add_argument('--workers', help='Number of multiprocessing workers. To disable multiprocessing, set workers to 0', type=int, default=1)
@@ -429,7 +431,7 @@ def main(args=None):
     backbone = models.backbone(args.backbone)
 
     # make sure keras is the minimum required version
-    check_keras_version()
+    # check_keras_version()
 
     # optionally choose specific GPU
     if args.gpu:
@@ -470,7 +472,7 @@ def main(args=None):
         )
 
     # print model summary
-    print(model.summary())
+    # print(model.summary())
 
     # this lets the generator compute backbone layer shapes using the actual backbone model
     if 'vgg' in args.backbone or 'densenet' in args.backbone:
@@ -512,3 +514,8 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
+
+# python train.py --snapshot=./snapshots/resnet50_coco_11.h5 --batch-size=2 coco /mnt/lyz/coco/ >> train_lyz_1.log 2>&1 &
+# python train.py --imagenet-weights --batch-size=2 --gpu=0 --epochs=40 --steps=10000 coco /mnt/lyz/coco > train_lyz_2.log 2>&1 &
+# python train.py --snapshot=./snapshots/resnet50_coco_37.h5 --initial_epoch=38 --batch-size=8 --gpu=1 --epochs=50 --steps=8000 coco /mnt/lyz/coco >> train_lyz_2.log 2>&1 &
